@@ -1,0 +1,175 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+.env.*
+!.env.example
+
+# IDE and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+.project
+.pydevproject
+.settings/
+.sublime-workspace
+.sublime-project
+*.sublime-workspace
+*.sublime-project
+.atom/
+.buildpath
+
+# Logs and Databases
+*.log
+logs/
+*.log.*
+log/
+*.sqlite
+*.db
+*.rdb
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing and Coverage
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+htmlcov/
+
+# Documentation
+docs/_build/
+site/
+
+# Distribution
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Chainlit specific
+.chainlit/
+chainlit.md
+.chainlit_env/
+
+# Model files and data
+models/
+*.pt
+*.pth
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+*.model
+data/raw/
+data/processed/
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+*.backup
+*.pid
+*.seed
+*.pid.lock
+
+# Environment configurations
+.python-version
+.ruby-version
+.node-version
+.nvmrc
+.tool-versions
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Local development
+local_settings.py
+instance/
+.webassets-cache
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Dependencies
+node_modules/
+jspm_packages/
+bower_components/
+
+# Misc
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+*.tgz
+.vercel
+.now 
