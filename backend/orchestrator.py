@@ -255,15 +255,10 @@ class Orchestrator:
             
             # Get response from appropriate agent
             if agent_type == 'dexscreener':
-                # Check if input contains token address
-                if re.search(r'0x[a-fA-F0-9]{40}', user_input):
-                    response = self.dexscreener_agent.get_price_data(
-                        re.search(r'0x[a-fA-F0-9]{40}', user_input).group()
-                    )
-                else:
-                    # Try token search
-                    response = self.dexscreener_agent.search_tokens(user_input)
-                    logger.info(f"DexScreener response status: {response.get('status')}")
+                # Try token search
+                logger.info(f"selected dexscreener agent with input: {user_input}")
+                response = self.dexscreener_agent.process_query(user_input)
+                logger.info(f"DexScreener response status: {response.get('status')}")
             else:
                 # Enhance OpenAI prompt with context if available
                 metadata = self.context_manager.get_metadata()

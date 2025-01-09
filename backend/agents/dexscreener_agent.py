@@ -4,7 +4,7 @@ from datetime import datetime
 import logging
 import os
 from openai import OpenAI
-import re
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,25 +23,67 @@ class DexscreenerAgent:
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     
 
-    def get_token_identifiers(self, user_input: str) -> Optional[str]:
+    def get_token_identifiers(self, user_input: str) -> Dict[str, Optional[str]]:
+        """
+        Extracts a ticker or contract address from user input. 
+        Returns a dictionary with keys 'ticker' and 'contract_address'.
+        """
         try:
-            system_prompt = "You are a helpful crypto expert that extracts token identifiers from user input. return only two things ticker: and contract_address: if a ticker is not present, return None for ticker. if a contract_address is not present, return None for contract_address."
+            # Define a system prompt for the AI model
+            system_prompt = (
+                "You are a crypto expert that extracts token identifiers accurately.\n"
+                "Always return the result in JSON format:\n"
+                "{\n"
+                '  "ticker": "<Ticker if present, or null>",\n'
+                '  "contract_address": "<Contract address if present, or null>"\n'
+                "}\n"
+                "If neither a ticker nor contract address is found, return:\n"
+                '{ "ticker": null, "contract_address": null }.\n'
+            )
+            
+            # Define the user prompt based on input
             user_prompt = f"User input: {user_input}"
+            
+            # Call GPT model to extract token information
             response = self.client.chat.completions.create(
                 model="gpt-4",
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                max_tokens=150
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=150,
+                temperature=0  # Setting temperature to 0 for deterministic results
             )
-            response_text = response.choices[0].message.content
             
-            # Regular expressions to extract ticker and contract address
-            ticker_match = re.search(r'ticker:\s*(\w+)', response_text)
-            contract_match = re.search(r'contract_address:\s*(\w+)', response_text)
+            # Parse the response from the AI
+            response_text = response.choices[0].message.content.strip()
+            logger.info(f"AI Response: {response_text}")
             
-            ticker = ticker_match.group(1) if ticker_match else None
-            contract = contract_match.group(1) if contract_match else None
-            
-            logger.info(f"Extracted - Ticker: {ticker}, Contract: {contract}")
+            # Validate and parse the response as JSON
+            try:
+                response_data = json.loads(response_text)
+                ticker = response_data.get("ticker")
+                contract_address = response_data.get("contract_address")
+                
+                # Ensure the format is valid
+                if not isinstance(ticker, (str, type(None))) or not isinstance(contract_address, (str, type(None))):
+                    raise ValueError("Invalid response format from AI.")
+                
+                logger.info(f"Extracted - Ticker: {ticker}, Contract Address: {contract_address}")
+                return {
+                    "ticker": ticker if ticker else None,
+                    "contract_address": contract_address if contract_address else None
+                }
+            except json.JSONDecodeError:
+                logger.error("Failed to parse AI response as JSON.")
+                raise ValueError("Invalid response format from AI.")
+        
+        except Exception as e:
+            logger.error(f"Error in get_token_identifiers: {str(e)}")
+            return {
+                "ticker": None,
+                "contract_address": None
+            }
             
             # Return the ticker if found, otherwise return None
             return ticker , contract if ticker and ticker.lower() != 'none' and contract and contract.lower() != 'none' else None
@@ -225,87 +267,113 @@ class DexscreenerAgent:
                 "type": "dexscreener"
             }
 
-  
-    
-    def search_tokens(self, query: str) -> Dict[str, Any]:
-        logger.info(f"Searching for tokens matching: {query}")
+    def process_query(self, query: str) -> Dict[str, Any]:
         """
-        Search for tokens by name or symbol.
+        Process a user query to get token price information.
         
         Args:
-            query: Search query string
+            query: User's query string
             
         Returns:
-            Dictionary containing search results
+            Dictionary containing token price information
         """
         try:
+            # Clean query and get token identifiers
             query = query.strip()
-            ticker , contract = self.get_token_identifiers(query)
+            token_identifiers = self.get_token_identifiers(query)
+            logger.info(f"Token identifiers: {token_identifiers}")
+            # Determine which identifier to use
             token = None
-            if contract:
-                token = contract
+            # if we here either ticker or contract_address is present
+            if token_identifiers['ticker'] is not None and token_identifiers['contract_address'] is None:
+                token = token_identifiers['ticker']
+            elif token_identifiers['ticker'] is None and token_identifiers['contract_address'] is not None:
+                token = token_identifiers['contract_address']
             else:
-                token = ticker
-            logger.info(f"seraching for : {token}")
+                if token_identifiers['ticker'] is not None and token_identifiers['contract_address'] is not None:
+                    token = token_identifiers['contract_address']
+                else:
+                    return {
+                        "response": "Could not identify a token in your query",
+                        "status": "error",
+                        "type": "dexscreener"
+                    }
+            # Fetch data from DexScreener
             url = f"{self.BASE_URL}/search?q={token}"
             logger.info(f"Fetching data from: {url}")
             response = self.session.get(url)
             response.raise_for_status()
             data = response.json()
+
             if not data.get("pairs"):
                 return {
-                    "response": f"No tokens found matching '{token}'",
+                    "response": f"No data found for token {token}",
                     "status": "error",
                     "type": "dexscreener"
                 }
+
+            # Find the best pair (prioritize specific DEXes)
             pair = next(
-                        (p for p in data.get('pairs', []) if (p.get('chainId') == 'solana' and p.get('dexId') == 'raydium') or (p.get('chainId') == 'base' and p.get('dexId') == 'uniswap') or (p.get('chainId') == 'ethereum' and p.get('dexId') == 'uniswap')),
-                        data.get('pairs', [{}])[0] if data.get('pairs') else None
-                    )
-                    
+                (p for p in data.get('pairs', []) 
+                 if (p.get('chainId') == 'solana' and p.get('dexId') == 'raydium') or 
+                    (p.get('chainId') == 'base' and p.get('dexId') == 'uniswap') or 
+                    (p.get('chainId') == 'ethereum' and p.get('dexId') == 'uniswap')),
+                data.get('pairs', [{}])[0]  # Fallback to first pair if no preferred pair found
+            )
+
             if not pair:
-                logger.warning(f"No pairs found for token {token}")
-                return {}
+                return {
+                    "response": f"No trading pairs found for {token}",
+                    "status": "error",
+                    "type": "dexscreener"
+                }
 
-
-            results = []
+            # Extract and format token information
             token_info = {
-                'ca': pair.get('baseToken', {}).get('address', ''),
-                'volume_24h': pair.get('volume', {}).get('h24', 0),
-                'market_cap': pair.get('marketCap', 0),
-                'liquidity': pair.get('liquidity', {}).get('usd', 0),
-                "name": pair.get("baseToken", {}).get("name", "Unknown"),
-                "symbol": pair.get("baseToken", {}).get("symbol", "Unknown"),
+                'name': pair.get('baseToken', {}).get('name', 'Unknown'),
+                'symbol': pair.get('baseToken', {}).get('symbol', 'Unknown'),
+                'contract_address': pair.get('baseToken', {}).get('address', 'Unknown'),
                 'price': float(pair.get('priceUsd', 0)),
-                "chain": pair.get("chainId", "Unknown"),
-                "dex": pair.get("dexId", "Unknown")
+                'price_change': {
+                    '5m': pair.get('priceChange', {}).get('m5'),
+                    '1h': pair.get('priceChange', {}).get('h1'),
+                    '24h': pair.get('priceChange', {}).get('h24')
+                },
+                'volume_24h': float(pair.get('volume', {}).get('h24', 0)),
+                'market_cap': float(pair.get('marketCap', 0)),
+                'liquidity': float(pair.get('liquidity', {}).get('usd', 0)),
+                'chain': pair.get('chainId', 'Unknown'),
+                'dex': pair.get('dexId', 'Unknown')
             }
-            results.append(token_info)
 
-            # Format message
-            message = f"🔍 Search Results for '{query}':\n\n"
-            for idx, result in enumerate(results, 1):
-                message += (
-                    f"{idx}. {result['name']} ({result['symbol']})\n"
-                    f"   💰 Price: ${result['price']}\n"
-                    f"   💰 Market Cap: ${result['market_cap']}\n"
-                    f"   💧 Liquidity: ${result['liquidity']}\n"
-                    f"   🔗 {result['chain']} - {result['dex']}\n"
-                    f"   💧 Volume 24h: ${result['volume_24h']}\n\n"
-                    f"   🔗 Contract Address: {result['ca']}\n\n"
-                )
+            # Format the response message
+            message = (
+                f"🪙 {token_info['name']} ({token_info['symbol']})\n\n"
+                f"💰 Price: ${token_info['price']:.6f}\n"
+                f"📈 Price Change:\n"
+                f"   • 5m:  {self.format_percentage(token_info['price_change']['5m'])}\n"
+                f"   • 1h:  {self.format_percentage(token_info['price_change']['1h'])}\n"
+                f"   • 24h: {self.format_percentage(token_info['price_change']['24h'])}\n\n"
+                f"📊 Market Stats:\n"
+                f"   • Market Cap: ${token_info['market_cap']:,.2f}\n"
+                f"   • 24h Volume: ${token_info['volume_24h']:,.2f}\n"
+                f"   • Liquidity: ${token_info['liquidity']:,.2f}\n\n"
+                f"🔗 Network: {token_info['chain']}\n"
+                f"🏢 DEX: {token_info['dex']}\n"
+                f"📝 Contract: {token_info['contract_address']}\n"
+            )
 
             return {
                 "response": message,
-                "data": results,
+                "data": [token_info],  # Wrap in list for consistency
                 "status": "success",
                 "type": "dexscreener"
             }
 
         except Exception as e:
-            logger.error(f"Error searching tokens: {str(e)}")
+            logger.error(f"Error processing query: {str(e)}")
             return {
-                "response": f"Error searching tokens: {str(e)}",
+                "response": f"Error processing query: {str(e)}",
                 "status": "error",
                 "type": "dexscreener"
             } 
