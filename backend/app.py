@@ -20,6 +20,7 @@ def query() -> tuple[Dict[str, Any], int]:
             return jsonify({"error": "Input must be a string", "status": "error"}), 400
         
         response = orchestrator.handle_input(user_input)
+        logger.info(f"Response: {response}")
         return jsonify(response), 200
     except Exception as e:
         print(f"Error processing request: {str(e)}")

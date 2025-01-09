@@ -2,6 +2,9 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
+import os
+from openai import OpenAI
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,7 +19,37 @@ class DexscreenerAgent:
     
     def __init__(self):
         self.session = requests.Session()
+        logger.info("DexscreenerAgent initialized")
+        self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     
+
+    def get_token_identifiers(self, user_input: str) -> Optional[str]:
+        try:
+            system_prompt = "You are a helpful crypto expert that extracts token identifiers from user input. return only two things ticker: and contract_address: if a ticker is not present, return None for ticker. if a contract_address is not present, return None for contract_address."
+            user_prompt = f"User input: {user_input}"
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                max_tokens=150
+            )
+            response_text = response.choices[0].message.content
+            
+            # Regular expressions to extract ticker and contract address
+            ticker_match = re.search(r'ticker:\s*(\w+)', response_text)
+            contract_match = re.search(r'contract_address:\s*(\w+)', response_text)
+            
+            ticker = ticker_match.group(1) if ticker_match else None
+            contract = contract_match.group(1) if contract_match else None
+            
+            logger.info(f"Extracted - Ticker: {ticker}, Contract: {contract}")
+            
+            # Return the ticker if found, otherwise return None
+            return ticker , contract if ticker and ticker.lower() != 'none' and contract and contract.lower() != 'none' else None
+
+        except Exception as e:
+            logger.error(f"Error getting token identifiers: {str(e)}")
+            return None
+
     def format_currency(self, value: float) -> str:
         """Format currency values with appropriate suffixes (K, M, B)"""
         if value >= 1_000_000_000:
@@ -33,7 +66,8 @@ class DexscreenerAgent:
             return "N/A"
         return f"{value:+.2f}%"
 
-    def get_price_data(self, token_address: str) -> Dict[str, Any]:
+    def get_price_data(self, user_input: str) -> Dict[str, Any]:
+        logger.info(f"Fetching price data for token: {user_input}")
         """
         Fetch detailed token information from Dexscreener.
         
@@ -43,12 +77,15 @@ class DexscreenerAgent:
         Returns:
             Dictionary containing formatted token information
         """
+        data = self.get_token_identifiers(user_input)
+        logger.info(f"Token identifiers: {data}")
         try:
-            url = f"{self.BASE_URL}/tokens/{token_address}"
+            url = f"{self.BASE_URL}/search?q={data}"
             response = self.session.get(url)
             response.raise_for_status()
             
             data = response.json()
+            #logger.info(f"Received data: {data}")
             if not data.get("pairs"):
                 return {
                     "response": "No data found for this token",
@@ -128,6 +165,7 @@ class DexscreenerAgent:
             }
 
     def get_pair_data(self, pair_address: str) -> Dict[str, Any]:
+        logger.info(f"Fetching pair data for pair: {pair_address}")
         """
         Fetch detailed information about a specific trading pair.
         
@@ -187,7 +225,10 @@ class DexscreenerAgent:
                 "type": "dexscreener"
             }
 
+  
+    
     def search_tokens(self, query: str) -> Dict[str, Any]:
+        logger.info(f"Searching for tokens matching: {query}")
         """
         Search for tokens by name or symbol.
         
@@ -198,10 +239,17 @@ class DexscreenerAgent:
             Dictionary containing search results
         """
         try:
-            url = f"{self.BASE_URL}/search"
-            response = self.session.get(url, params={"q": query})
+            ticker , contract = self.get_token_identifiers(query)
+            query = None
+            if contract:
+                query = contract
+            else:
+                query = ticker
+            logger.info(f"seraching for : {query}")
+            url = f"{self.BASE_URL}/search?q={query}"
+            logger.info(f"Fetching data from: {url}")
+            response = self.session.get(url)
             response.raise_for_status()
-            
             data = response.json()
             if not data.get("pairs"):
                 return {
@@ -215,7 +263,7 @@ class DexscreenerAgent:
                 data["pairs"],
                 key=lambda x: float(x.get("liquidity", {}).get("usd", 0)),
                 reverse=True
-            )[:5]
+            )[:1]
 
             results = []
             for pair in top_pairs:
