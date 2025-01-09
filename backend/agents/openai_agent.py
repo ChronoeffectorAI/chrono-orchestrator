@@ -52,3 +52,16 @@ class OpenAIAgent(BaseAgent):
             
         except Exception as e:
             return self.handle_error(e, "while processing OpenAI query") 
+
+    def description(self) -> str:
+        return """
+        Handles general queries about:
+        - General cryptocurrency questions
+        - Market analysis and trends
+        - Crypto news and updates
+        - Technical explanations
+        - Blockchain concepts and technology
+        - Project information and analysis
+        - DeFi concepts and explanations
+        - General crypto education
+        """ 

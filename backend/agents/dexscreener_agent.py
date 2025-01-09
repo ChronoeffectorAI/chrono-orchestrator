@@ -407,3 +407,17 @@ class DexscreenerAgent(BaseAgent):
 
         except Exception as e:
             return self.handle_error(e, "while processing DexScreener query") 
+
+    def description(self) -> str:
+        return """
+        Handles queries about:
+        - Token prices and price tracking
+        - Market capitalization
+        - Price changes and trends
+        - Trading volume analysis
+        - Token liquidity information
+        - Market data and statistics
+        - Token pairs information
+        - Token contract information and verification
+        - Real-time token metrics
+        """ 

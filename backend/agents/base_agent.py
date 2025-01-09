@@ -18,10 +18,11 @@ class BaseAgent(ABC):
         Args:
             max_context (int): Maximum number of interactions to keep in context
         """
+        self.agent_id = self.__class__.__name__.lower().replace('agent', '')
         self.name = self.__class__.__name__
         self.context = deque(maxlen=max_context)
         self.shared_context = {}  # Shared context accessible by other agents
-        logger.info(f"Initializing {self.name}")
+        logger.info(f"Initializing {self.name} with ID: {self.agent_id}")
 
     @abstractmethod
     def process_query(self, query: str, shared_context: Optional[Dict] = None) -> Dict[str, Any]:
@@ -119,3 +120,15 @@ class BaseAgent(ABC):
         
         logger.error(error_message)
         return self.format_response(error_message, status="error") 
+
+    @abstractmethod
+    def description(self) -> str:
+        """
+        Returns a description of the agent's capabilities.
+        This description will be used by the router to determine if the agent
+        should handle a specific query.
+        
+        Returns:
+            str: Description of what queries this agent can handle
+        """
+        pass 
