@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify
 from orchestrator import Orchestrator
 import traceback
 from typing import Dict, Any
-
+import logging
+logger = logging.getLogger(__name__)
 app = Flask(__name__)
 orchestrator = Orchestrator()
 
@@ -10,7 +11,7 @@ orchestrator = Orchestrator()
 def query() -> tuple[Dict[str, Any], int]:
     try:
         data = request.json
-        print(data)
+        logger.debug(f"Received data: {data}")
         if not data or 'input' not in data:
             return jsonify({"error": "No input provided", "status": "error"}), 400
         

@@ -317,7 +317,10 @@ Example Response Format:
    ANTHROPIC_API_KEY=your-anthropic-key
    CUSTOM_MODEL_ENDPOINT=your-endpoint
    ```
-
+5. Optional : You can use run.sh to start the backend and frontend and have all the environment variables set up for you
+```bash
+./run.sh
+```
 ## 🚀 Running the Framework
 
 1. Start the backend:
