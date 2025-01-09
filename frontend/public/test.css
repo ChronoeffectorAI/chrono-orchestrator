@@ -1,0 +1,440 @@
+/* Base styles */
+:root {
+    --primary-color: #4C1D95;
+    --secondary-color: #5B21B6;
+    --purple-glow: rgba(92, 29, 182, 0.3);
+    --success-color: #00c853;
+    --error-color: #ff1744;
+    --text-primary: #1a1f36;
+    --text-secondary: #4a5568;
+    --animation-curve: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hide the main app until authenticated */
+.cl-main {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.5s var(--animation-curve);
+}
+
+/* Show the main app after authentication */
+.authenticated .cl-main {
+    display: block;
+    opacity: 1;
+}
+
+/* Overlay */
+#wallet-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(5px) !important;
+    z-index: 99999 !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+
+/* Wallet Popup */
+#wallet-popup {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 100000 !important;
+    background: white !important;
+    padding: 2rem !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    width: 400px !important;
+    max-width: 90vw !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+
+.wallet-popup-content {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    width: auto;
+    max-width: none;
+}
+
+/* Header Styles */
+.wallet-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.app-logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
+}
+
+.wallet-header h2 {
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+    font-size: 1.5rem;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Wallet Button Styles */
+.wallet-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.wallet-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s var(--animation-curve);
+    overflow: hidden;
+}
+
+.wallet-button:not(.disabled):hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.wallet-button img {
+    width: 24px;
+    height: 24px;
+    margin-right: 12px;
+}
+
+.wallet-button span {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.wallet-button.phantom {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 4px 12px var(--purple-glow) !important;
+}
+
+.wallet-button.phantom span {
+    color: white;
+}
+
+.wallet-button.phantom:hover {
+    background: var(--secondary-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px var(--purple-glow) !important;
+}
+
+.hover-effect {
+    position: absolute;
+    top: var(--mouse-y, 0);
+    left: var(--mouse-x, 0);
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle closest-side, rgba(92, 29, 182, 0.4), transparent) !important;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(120%);
+    transition: transform 0.3s var(--animation-curve);
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.success .toast-icon {
+    background: var(--success-color);
+    color: white;
+}
+
+.error .toast-icon {
+    background: var(--error-color);
+    color: white;
+}
+
+.toast-message h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.toast-message p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.fade-out {
+    animation: fadeOut 0.5s var(--animation-curve) forwards;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Install Section */
+.install-section {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.phantom-large {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1.5rem;
+}
+
+.install-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--primary-color) !important;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s var(--animation-curve);
+    box-shadow: 0 4px 12px var(--purple-glow) !important;
+}
+
+.install-button:hover {
+    background: var(--secondary-color) !important;
+    box-shadow: 0 6px 16px var(--purple-glow) !important;
+}
+
+.external-link {
+    width: 16px;
+    height: 16px;
+}
+
+.install-note {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* Footer */
+.wallet-footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.wallet-footer p {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.wallet-footer a {
+    color: var(--primary-color) !important;
+    text-decoration: none;
+}
+
+.wallet-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Holdings Popup Styles */
+.holdings-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(76, 29, 149, 0.15);
+    backdrop-filter: blur(5px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.holdings-popup {
+    background: white;
+    border-radius: 16px;
+    width: 400px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: popIn 0.3s ease;
+    box-shadow: 0 8px 32px var(--purple-glow);
+}
+
+.holdings-header {
+    padding: 20px;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: none;
+}
+
+.holdings-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.close-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    font-size: 24px;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.close-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+.holdings-content {
+    padding: 20px;
+    max-height: calc(80vh - 80px);
+    overflow-y: auto;
+}
+
+.holdings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.token-item {
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(76, 29, 149, 0.1);
+    transition: all 0.3s ease;
+}
+
+.token-item:hover {
+    background: rgba(76, 29, 149, 0.05);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--purple-glow);
+}
+
+.token-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.token-amount {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.token-symbol {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    background: rgba(76, 29, 149, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.no-tokens {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 40px 20px;
+    background: rgba(76, 29, 149, 0.05);
+    border-radius: 12px;
+    font-size: 0.95em;
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+/* Add a subtle magenta glow to the wallet display on hover */
+[style*="position: fixed"][style*="bottom: 20px"] {
+    background: var(--primary-color) !important;
+    box-shadow: 0 4px 12px var(--purple-glow) !important;
+}
+
+[style*="position: fixed"][style*="bottom: 20px"]:hover {
+    box-shadow: 0 6px 16px var(--purple-glow) !important;
+    background: var(--secondary-color) !important;
+    transform: translateY(-2px);
+}
