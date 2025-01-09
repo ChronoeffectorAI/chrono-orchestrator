@@ -1,6 +1,6 @@
+from .base_agent import BaseAgent
 import requests
 from typing import Dict, Any, Optional
-from datetime import datetime
 import logging
 import os
 from openai import OpenAI
@@ -9,7 +9,7 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class DexscreenerAgent:
+class DexscreenerAgent(BaseAgent):
     """
     DexscreenerAgent fetches comprehensive token information from the Dexscreener API.
     Includes market cap, volume, price changes, and liquidity data.
@@ -18,12 +18,13 @@ class DexscreenerAgent:
     BASE_URL = "https://api.dexscreener.com/latest/dex"
     
     def __init__(self):
+        super().__init__()
         self.session = requests.Session()
         logger.info("DexscreenerAgent initialized")
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     
 
-    def get_token_identifiers(self, user_input: str) -> Dict[str, Optional[str]]:
+    def _get_token_identifiers(self, user_input: str) -> Dict[str, Optional[str]]:
         """
         Extracts a ticker or contract address from user input. 
         Returns a dictionary with keys 'ticker' and 'contract_address'.
@@ -79,7 +80,7 @@ class DexscreenerAgent:
                 raise ValueError("Invalid response format from AI.")
         
         except Exception as e:
-            logger.error(f"Error in get_token_identifiers: {str(e)}")
+            logger.error(f"Error in _get_token_identifiers: {str(e)}")
             return {
                 "ticker": None,
                 "contract_address": None
@@ -267,7 +268,27 @@ class DexscreenerAgent:
                 "type": "dexscreener"
             }
 
-    def process_query(self, query: str) -> Dict[str, Any]:
+    def update_shared_context(self, interaction: Dict[str, Any]) -> None:
+        """
+        Update shared context with DexScreener-specific information
+        """
+        super().update_shared_context(interaction)
+        
+        # Extract token information if available
+        if interaction['response'].get('data'):
+            token_info = interaction['response']['data']
+            self.shared_context.update({
+                'last_token_name': token_info.get('name'),
+                'last_token_symbol': token_info.get('symbol'),
+                'last_token_price': token_info.get('price'),
+                'last_token_chain': token_info.get('chain'),
+                'last_token_address': token_info.get('contract_address'),
+                'last_market_cap': token_info.get('market_cap'),
+                'last_volume': token_info.get('volume_24h'),
+                'last_liquidity': token_info.get('liquidity')
+            })
+
+    def process_query(self, query: str, shared_context: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Process a user query to get token price information.
         
@@ -278,9 +299,15 @@ class DexscreenerAgent:
             Dictionary containing token price information
         """
         try:
+            # Use shared context if available
+            # if shared_context:
+            #     logger.info(f"Using shared context: {shared_context}")
+            #     # Example: Use previous token information if relevant
+            #     if 'last_token_symbol' in shared_context and 'it' in query.lower():
+            #         query = query.lower().replace('it', shared_context['last_token_symbol'])
+
             # Clean query and get token identifiers
-            query = query.strip()
-            token_identifiers = self.get_token_identifiers(query)
+            token_identifiers = self._get_token_identifiers(query)
             logger.info(f"Token identifiers: {token_identifiers}")
             # Determine which identifier to use
             token = None
@@ -363,17 +390,20 @@ class DexscreenerAgent:
                 f"📝 Contract: {token_info['contract_address']}\n"
             )
 
+            # Add interaction to context
+            self.add_to_context(query, {
+                "response": message,
+                "data": token_info,
+                "status": "success",
+                "type": "dexscreener"
+            })
+            
             return {
                 "response": message,
-                "data": [token_info],  # Wrap in list for consistency
+                "data": token_info,
                 "status": "success",
                 "type": "dexscreener"
             }
 
         except Exception as e:
-            logger.error(f"Error processing query: {str(e)}")
-            return {
-                "response": f"Error processing query: {str(e)}",
-                "status": "error",
-                "type": "dexscreener"
-            } 
+            return self.handle_error(e, "while processing DexScreener query") 

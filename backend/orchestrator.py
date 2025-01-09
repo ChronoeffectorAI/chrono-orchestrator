@@ -194,7 +194,7 @@ class ContextManager:
         
     def add_interaction(self, query: str, response: Dict[str, Any], agent_type: str):
         """Add an interaction to the context"""
-        logger.info(f"Adding interaction: {query} - {response} - {agent_type}")
+        logger.debug(f"Adding interaction: {query} - {response} - {agent_type}")
         self.context.append({
             'timestamp': datetime.utcnow().isoformat(),
             'query': query,
@@ -206,13 +206,14 @@ class ContextManager:
         if agent_type == 'dexscreener':
             if 'data' in response:
                 self.metadata.update({
-                    'last_token': response['data'][0].get('symbol'),
-                    'last_price': response['data'][0].get('price'),
-                    'last_chain': response['data'][0].get('chain'),
-                    'last_ca': response['data'][0].get('ca'),
-                    'last_market_cap': response['data'][0].get('market_cap'),
-                    'last_liquidity': response['data'][0].get('liquidity'),
-                    'last_volume_24h': response['data'][0].get('volume_24h')
+                    'last_name': response['data'].get('name'),
+                    'last_symbol': response['data'].get('symbol'),
+                    'last_price': response['data'].get('price'),
+                    'last_chain': response['data'].get('chain'),
+                    'last_ca': response['data'].get('contract_address'),
+                    'last_market_cap': response['data'].get('market_cap'),
+                    'last_liquidity': response['data'].get('liquidity'),
+                    'last_volume_24h': response['data'].get('volume_24h')
                 })
             else:
                 logger.info(f"No data in response: {response}")
@@ -271,11 +272,11 @@ class Orchestrator:
                     )
                 else:
                     enhanced_input = user_input
-                response = self.openai_agent.respond(enhanced_input)
+                response = self.openai_agent.process_query(enhanced_input)
             
             # Update context with new interaction
             self.context_manager.add_interaction(user_input, response, agent_type)
-            
+            logger.info(f"Context: {self.context_manager.get_context()}")
             return response
             
         except Exception as e:
