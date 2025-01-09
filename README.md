@@ -494,3 +494,185 @@ Features:
 - Real-time market data
 - Extensible architecture
 - Production-ready design 
+
+## 🔧 Creating New Agents
+
+### Agent Architecture
+
+The framework uses an abstract base agent class that all agents must inherit from. Each agent must implement certain required methods and can optionally override others for custom behavior.
+
+### 1. Create a New Agent Class
+
+Create a new file in `backend/agents/` (e.g., `custom_agent.py`):
+
+```python
+from .base_agent import BaseAgent
+from typing import Dict, Any, Optional
+
+class CustomAgent(BaseAgent):
+    def __init__(self):
+        super().__init__()
+        # Initialize any agent-specific resources
+        self.some_client = SomeClient()
+
+    def description(self) -> str:
+        """
+        Define the agent's capabilities for the router.
+        This description is used to determine if this agent 
+        should handle specific queries.
+        """
+        return """
+        Handles queries about:
+        - Specific capability 1
+        - Specific capability 2
+        - Type of queries it handles
+        - Specific data it can process
+        - Special features it provides
+        """
+
+    def process_query(self, query: str, shared_context: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Process user queries and return responses.
+        """
+        try:
+            # Use shared context if relevant
+            if shared_context:
+                # Enhance query with context
+                pass
+
+            # Process the query
+            result = self._process_query_logic(query)
+            
+            # Format the response
+            response = self.format_response(
+                message=result['message'],
+                data=result['data']
+            )
+            
+            # Add to agent's context
+            self.add_to_context(query, response)
+            
+            return response
+            
+        except Exception as e:
+            return self.handle_error(e, "while processing custom query")
+
+    def update_shared_context(self, interaction: Dict[str, Any]) -> None:
+        """
+        Update shared context with agent-specific information
+        """
+        super().update_shared_context(interaction)
+        
+        # Add agent-specific context
+        if interaction['response'].get('data'):
+            data = interaction['response']['data']
+            self.shared_context.update({
+                'custom_key_1': data.get('some_value'),
+                'custom_key_2': data.get('other_value')
+            })
+```
+
+### 2. Required Methods
+
+Every agent must implement these methods:
+
+1. `description()` -> str
+   - Returns a detailed description of the agent's capabilities
+   - Used by the router to determine which agent should handle a query
+   - Should be specific and comprehensive
+
+2. `process_query(query: str, shared_context: Optional[Dict] = None) -> Dict[str, Any]`
+   - Main method for processing user queries
+   - Must return a dictionary with at least:
+     ```python
+     {
+         "response": str,  # The formatted response text
+         "status": str,    # 'success' or 'error'
+         "type": str       # The agent type identifier
+     }
+     ```
+
+### 3. Optional Methods to Override
+
+1. `update_shared_context(interaction: Dict[str, Any]) -> None`
+   - Customize how the agent updates shared context
+   - Called automatically after each interaction
+
+2. `format_response(message: str, data: Any = None, status: str = "success") -> Dict[str, Any]`
+   - Customize response formatting if needed
+   - Base implementation usually sufficient
+
+### 4. Register the Agent
+
+Add the new agent to the Orchestrator in `backend/orchestrator.py`:
+
+```python
+from agents.custom_agent import CustomAgent
+
+class Orchestrator:
+    def __init__(self):
+        self.agents = {}
+        self.context_manager = ContextManager()
+        
+        # Register all agents
+        self._register_agents([
+            OpenAIAgent(),
+            DexscreenerAgent(),
+            SwapAgent(),
+            CustomAgent()  # Add your new agent here
+        ])
+        
+        # Initialize router with registered agents
+        self.router = AgentRouter(self.agents)
+```
+
+### 5. Agent Features
+
+Your agent automatically gets these features:
+
+- **Context Management**: 
+  - Maintains conversation history
+  - Shares context with other agents
+  - Automatic context window management
+
+- **Error Handling**:
+  - Consistent error formatting
+  - Automatic logging
+  - Error context preservation
+
+- **Response Formatting**:
+  - Standardized response structure
+  - Data payload support
+  - Status tracking
+
+### 6. Best Practices
+
+1. **Description Writing**:
+   - Be specific about capabilities
+   - List all query types handled
+   - Include relevant keywords
+   - Make it easy for the router to understand
+
+2. **Context Usage**:
+   - Use shared context when relevant
+   - Update context with useful information
+   - Keep context data clean and relevant
+
+3. **Error Handling**:
+   - Use the provided `handle_error` method
+   - Include meaningful error contexts
+   - Log appropriate information
+
+4. **Response Formatting**:
+   - Use `format_response` for consistency
+   - Include relevant data payloads
+   - Maintain response structure
+
+### Example Agents
+
+See existing agents for implementation examples:
+- `OpenAIAgent`: General query handling
+- `DexscreenerAgent`: Market data processing
+- `SwapAgent`: Transaction handling
+
+Each demonstrates different aspects of agent implementation and specialization. 
