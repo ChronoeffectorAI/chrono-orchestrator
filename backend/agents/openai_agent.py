@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
@@ -6,11 +6,11 @@ load_dotenv()
 
 class OpenAIAgent:
     def __init__(self):
-        openai.api_key = os.getenv('OPENAI_API_KEY')
+        self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
     def respond(self, user_input: str) -> dict:
         try:
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "user", "content": user_input}

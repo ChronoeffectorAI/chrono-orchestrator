@@ -10,6 +10,7 @@ orchestrator = Orchestrator()
 def query() -> tuple[Dict[str, Any], int]:
     try:
         data = request.json
+        print(data)
         if not data or 'input' not in data:
             return jsonify({"error": "No input provided", "status": "error"}), 400
         

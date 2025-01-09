@@ -3,7 +3,7 @@ import requests
 from typing import Dict, Any
 import json
 
-BACKEND_URL = "http://localhost:5000/api/query"
+BACKEND_URL = "http://127.0.0.1:5000/api/query"
 
 @cl.on_chat_start
 async def start():
@@ -14,10 +14,10 @@ async def main(message: str):
     try:
         response = requests.post(
             BACKEND_URL,
-            json={"input": message},
+            json={"input": message.content},
             headers={"Content-Type": "application/json"}
         )
-        
+        print(response)
         if response.status_code == 200:
             try:
                 data = response.json()
