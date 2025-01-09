@@ -208,7 +208,11 @@ class ContextManager:
                 self.metadata.update({
                     'last_token': response['data'][0].get('symbol'),
                     'last_price': response['data'][0].get('price'),
-                    'last_chain': response['data'][0].get('chain')
+                    'last_chain': response['data'][0].get('chain'),
+                    'last_ca': response['data'][0].get('ca'),
+                    'last_market_cap': response['data'][0].get('market_cap'),
+                    'last_liquidity': response['data'][0].get('liquidity'),
+                    'last_volume_24h': response['data'][0].get('volume_24h')
                 })
             else:
                 logger.info(f"No data in response: {response}")

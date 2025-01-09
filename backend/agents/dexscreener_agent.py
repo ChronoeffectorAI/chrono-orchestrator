@@ -239,52 +239,60 @@ class DexscreenerAgent:
             Dictionary containing search results
         """
         try:
+            query = query.strip()
             ticker , contract = self.get_token_identifiers(query)
-            query = None
+            token = None
             if contract:
-                query = contract
+                token = contract
             else:
-                query = ticker
-            logger.info(f"seraching for : {query}")
-            url = f"{self.BASE_URL}/search?q={query}"
+                token = ticker
+            logger.info(f"seraching for : {token}")
+            url = f"{self.BASE_URL}/search?q={token}"
             logger.info(f"Fetching data from: {url}")
             response = self.session.get(url)
             response.raise_for_status()
             data = response.json()
             if not data.get("pairs"):
                 return {
-                    "response": f"No tokens found matching '{query}'",
+                    "response": f"No tokens found matching '{token}'",
                     "status": "error",
                     "type": "dexscreener"
                 }
+            pair = next(
+                        (p for p in data.get('pairs', []) if (p.get('chainId') == 'solana' and p.get('dexId') == 'raydium') or (p.get('chainId') == 'base' and p.get('dexId') == 'uniswap') or (p.get('chainId') == 'ethereum' and p.get('dexId') == 'uniswap')),
+                        data.get('pairs', [{}])[0] if data.get('pairs') else None
+                    )
+                    
+            if not pair:
+                logger.warning(f"No pairs found for token {token}")
+                return {}
 
-            # Get top 5 results
-            top_pairs = sorted(
-                data["pairs"],
-                key=lambda x: float(x.get("liquidity", {}).get("usd", 0)),
-                reverse=True
-            )[:1]
 
             results = []
-            for pair in top_pairs:
-                token_info = {
-                    "name": pair.get("baseToken", {}).get("name", "Unknown"),
-                    "symbol": pair.get("baseToken", {}).get("symbol", "Unknown"),
-                    "price": self.format_currency(float(pair.get("priceUsd", 0))),
-                    "liquidity": self.format_currency(float(pair.get("liquidity", {}).get("usd", 0))),
-                    "chain": pair.get("chainId", "Unknown"),
-                    "dex": pair.get("dexId", "Unknown")
-                }
-                results.append(token_info)
+            token_info = {
+                'ca': pair.get('baseToken', {}).get('address', ''),
+                'volume_24h': pair.get('volume', {}).get('h24', 0),
+                'market_cap': pair.get('marketCap', 0),
+                'liquidity': pair.get('liquidity', {}).get('usd', 0),
+                "name": pair.get("baseToken", {}).get("name", "Unknown"),
+                "symbol": pair.get("baseToken", {}).get("symbol", "Unknown"),
+                'price': float(pair.get('priceUsd', 0)),
+                "chain": pair.get("chainId", "Unknown"),
+                "dex": pair.get("dexId", "Unknown")
+            }
+            results.append(token_info)
 
             # Format message
             message = f"🔍 Search Results for '{query}':\n\n"
             for idx, result in enumerate(results, 1):
                 message += (
                     f"{idx}. {result['name']} ({result['symbol']})\n"
-                    f"   💰 Price: {result['price']}\n"
-                    f"   💧 Liquidity: {result['liquidity']}\n"
-                    f"   🔗 {result['chain']} - {result['dex']}\n\n"
+                    f"   💰 Price: ${result['price']}\n"
+                    f"   💰 Market Cap: ${result['market_cap']}\n"
+                    f"   💧 Liquidity: ${result['liquidity']}\n"
+                    f"   🔗 {result['chain']} - {result['dex']}\n"
+                    f"   💧 Volume 24h: ${result['volume_24h']}\n\n"
+                    f"   🔗 Contract Address: {result['ca']}\n\n"
                 )
 
             return {

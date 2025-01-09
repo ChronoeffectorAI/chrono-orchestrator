@@ -10,9 +10,11 @@ class OpenAIAgent:
 
     def respond(self, user_input: str) -> dict:
         try:
+            system_prompt = "You are a helpful crypto expert that can answer questions about crypto. You are also able to provide information about the latest news in the crypto space."
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_input}
                 ],
                 max_tokens=150
