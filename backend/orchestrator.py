@@ -75,20 +75,73 @@ class AgentRouter:
 
     def determine_agent(self, query: str, context: List[Dict]) -> str:
         """
-        Determine which agent should handle the query based on context and content
+        Use OpenAI to determine which agent should handle the query
         """
-        # Calculate market confidence
-        market_confidence = self.calculate_market_confidence(query, context)
-        logger.info(f"Market confidence for '{query}': {market_confidence:.2f}")
+        try:
+            system_prompt = """
+            You are an AI tasked with routing user queries to the appropriate agent.
+            Based on the user's input, determine which agent should handle the request.
+            
+            Rules for agent selection:
+            1. "dexscreener" - For queries about:
+               - Token prices
+               - Market capitalization
+               - Price changes/trends
+               - Trading volume
+               - Token liquidity
+               - Market data
+               - Token pairs information
+               - Token contract information
+            
+            2. "swap" - For queries about:
+               - Buying tokens
+               - Selling tokens
+               - Token swaps
+               - Trading execution
+               - Best routes for trades
+               - Slippage calculations
+               - Gas fees for trades
+            
+            3. "openai" - For all other queries, including:
+               - General crypto questions
+               - Market analysis
+               - News and updates
+               - Technical explanations
+               - Blockchain concepts
+               - Project information
+            
+            Respond ONLY with one of these exact strings: "dexscreener", "swap", or "openai"
+            """
 
-        # Use DexScreener for crypto-related queries
-        if market_confidence > self.CONFIDENCE_THRESHOLD:
-            logger.info("Using DexScreener agent")
-            return 'dexscreener'
-        
-        # Default to OpenAI
-        logger.info("Using OpenAI agent")
-        return 'openai'
+            user_prompt = f"Route this query: {query}"
+            
+            if context:
+                last_interaction = context[-1]
+                user_prompt += f"\nPrevious interaction type: {last_interaction.get('type', 'none')}"
+
+            response = self.openai_agent.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=10,
+                temperature=0
+            )
+
+            agent_type = response.choices[0].message.content.strip().lower()
+            logger.info(f"OpenAI selected agent '{agent_type}' for query: '{query}'")
+
+            # Validate response
+            if agent_type not in ["dexscreener", "swap", "openai"]:
+                logger.warning(f"Invalid agent type '{agent_type}' returned, defaulting to 'openai'")
+                return "openai"
+
+            return agent_type
+
+        except Exception as e:
+            logger.error(f"Error in determine_agent: {str(e)}")
+            return "openai"  # Default to OpenAI on error
 
     def process_query(self, query: str, context: List[Dict]) -> Dict[str, Any]:
         """
@@ -257,9 +310,9 @@ class Orchestrator:
             # Get response from appropriate agent
             if agent_type == 'dexscreener':
                 # Try token search
-                logger.info(f"selected dexscreener agent with input: {user_input}")
+                logger.debug(f"selected dexscreener agent with input: {user_input}")
                 response = self.dexscreener_agent.process_query(user_input)
-                logger.info(f"DexScreener response status: {response.get('status')}")
+                logger.debug(f"DexScreener response status: {response.get('status')}")
             else:
                 # Enhance OpenAI prompt with context if available
                 metadata = self.context_manager.get_metadata()
