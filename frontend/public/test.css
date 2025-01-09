@@ -30,9 +30,9 @@
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    background: rgba(0, 0, 0, 0.7) !important;
+    background: transparent !important;
     backdrop-filter: blur(5px) !important;
-    z-index: 99999 !important;
+    z-index: 1000000 !important;
     opacity: 1 !important;
     display: block !important;
 }
@@ -43,7 +43,7 @@
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
-    z-index: 100000 !important;
+    z-index: 1000001 !important;
     background: white !important;
     padding: 2rem !important;
     border-radius: 20px !important;
@@ -52,6 +52,7 @@
     max-width: 90vw !important;
     opacity: 1 !important;
     display: block !important;
+    animation: initialPopIn 0.5s var(--animation-curve) forwards;
 }
 
 .wallet-popup-content {
@@ -437,4 +438,29 @@
     box-shadow: 0 6px 16px var(--purple-glow) !important;
     background: var(--secondary-color) !important;
     transform: translateY(-2px);
+}
+
+/* Blocking overlay styles */
+#blocking-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--primary-color);
+    z-index: 999999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@keyframes initialPopIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
 }

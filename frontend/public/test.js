@@ -20,13 +20,17 @@ function createWalletAuthPopup() {
     // Check if popup already exists
     const existingOverlay = document.getElementById('wallet-overlay');
     const existingPopup = document.getElementById('wallet-popup');
+    const existingBlockingOverlay = document.getElementById('blocking-overlay');
     
-    if (existingOverlay || existingPopup) {
-        console.log("Popup already exists, removing old one");
-        existingOverlay?.remove();
-        existingPopup?.remove();
-    }
+    // Remove any existing elements
+    if (existingOverlay) existingOverlay.remove();
+    if (existingPopup) existingPopup.remove();
+    if (existingBlockingOverlay) existingBlockingOverlay.remove();
     
+    // Create blocking overlay first
+    createBlockingOverlay();
+    
+    // Create wallet overlay
     createOverlay();
     
     // Create popup container
@@ -94,8 +98,16 @@ function createWalletAuthPopup() {
 
     // Add popup to page
     document.body.appendChild(popup);
-    console.log("Popup added to body");
     
+    // Force a reflow to ensure proper rendering
+    popup.offsetHeight;
+    
+    console.log("Elements created:", {
+        blockingOverlay: !!document.getElementById('blocking-overlay'),
+        walletOverlay: !!document.getElementById('wallet-overlay'),
+        popup: !!document.getElementById('wallet-popup')
+    });
+
     // Debug: Check if elements are actually in the DOM
     console.log("Overlay in DOM:", !!document.getElementById('wallet-overlay'));
     console.log("Popup in DOM:", !!document.getElementById('wallet-popup'));
@@ -124,18 +136,23 @@ function createWalletAuthPopup() {
 // Function to connect to Phantom wallet
 async function connectWallet() {
     try {
-        const resp = await window.phantom?.solana?.connect();
+        const provider = window.phantom?.solana;
+        const resp = await provider.connect();
         const publicKey = resp.publicKey.toString();
         
         // Remove the auth popup and overlay with fade out
         const popup = document.getElementById('wallet-popup');
         const overlay = document.getElementById('wallet-overlay');
-        popup.classList.add('fade-out');
-        overlay.classList.add('fade-out');
+        const blockingOverlay = document.getElementById('blocking-overlay');
+        
+        popup?.classList.add('fade-out');
+        overlay?.classList.add('fade-out');
+        blockingOverlay?.classList.add('fade-out');
         
         setTimeout(() => {
-            popup.remove();
-            overlay.remove();
+            popup?.remove();
+            overlay?.remove();
+            blockingOverlay?.remove();
         }, 500);
         
         // Show success message
@@ -145,6 +162,7 @@ async function connectWallet() {
         document.body.classList.add('authenticated');
         
     } catch (err) {
+        console.error("Connection error:", err);
         showErrorMessage();
     }
 }
@@ -199,11 +217,34 @@ function showErrorMessage() {
     }, 3000);
 }
 
-// Check if user is already connected
+// Add overlay to block access to site
+function createBlockingOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'blocking-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--primary-color);
+        z-index: 999999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+// Modify checkConnection function to be more strict
 async function checkConnection() {
     console.log("Checking connection...");
     
-    // If Phantom is not installed, show install popup immediately
+    // Hide the main content initially
+    document.body.classList.remove('authenticated');
+    
+    // If Phantom is not installed or not connected, show popup
     if (!isPhantomInstalled) {
         console.log("Phantom not installed, showing install popup");
         createWalletAuthPopup();
@@ -216,11 +257,34 @@ async function checkConnection() {
             console.log("Already Connected:", address);
             document.body.classList.add('authenticated');
             return true;
+        } else {
+            console.log("No wallet connected, showing connect popup");
+            createWalletAuthPopup();
+            return false;
         }
     } catch (err) {
         console.log("Not connected, showing connect popup");
         createWalletAuthPopup();
         return false;
+    }
+}
+
+// Add wallet connection listener
+function setupWalletListener() {
+    if (window.phantom?.solana) {
+        window.phantom.solana.on('disconnect', () => {
+            console.log("Wallet disconnected");
+            document.body.classList.remove('authenticated');
+            createBlockingOverlay();
+            createWalletAuthPopup();
+        });
+
+        window.phantom.solana.on('connect', (publicKey) => {
+            console.log("Wallet connected:", publicKey.toString());
+            document.body.classList.add('authenticated');
+            const overlay = document.getElementById('blocking-overlay');
+            if (overlay) overlay.remove();
+        });
     }
 }
 
@@ -231,10 +295,22 @@ async function getCurrentWalletAddress() {
         const provider = window.phantom?.solana;
         if (provider) {
             console.log("Provider found");
-            // Check if already connected
-            const resp = await provider.connect({ onlyIfTrusted: true });
-            console.log("Provider response:", resp);
-            return resp?.publicKey?.toString() || null;
+            
+            // First try to get the current connection without prompting
+            try {
+                const resp = await provider.request({ 
+                    method: "connect",
+                    params: { onlyIfTrusted: true }
+                });
+                if (resp?.publicKey) {
+                    return resp.publicKey.toString();
+                }
+            } catch (e) {
+                console.log("Not already connected:", e);
+            }
+
+            // If we're not connected, return null (don't try to connect)
+            return null;
         }
         console.log("No provider found");
         return null;
@@ -403,11 +479,12 @@ function addTestButton() {
     console.log("Wallet display in DOM:", !!document.querySelector('[style*="position: fixed"]'));
 }
 
-// Initialize when DOM is loaded
+// Update the initialization
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded");
     setTimeout(() => {
         console.log("Starting initialization");
+        setupWalletListener();
         checkConnection().then(() => {
             console.log("Connection check complete");
             addTestButton();
